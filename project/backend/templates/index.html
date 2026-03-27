@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CyberWatch ML — Threat Correlation Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sb-logo">
+      <div class="shld">🛡️</div>
+      <h1>CYBERWATCH</h1>
+      <p>ML BACKEND v2.0</p>
+    </div>
+    <nav>
+      <div class="nav-sec">ANALYSIS</div>
+      <div class="nav-item active" onclick="showPage('dashboard',this)" data-page="dashboard">
+        📊 Dashboard
+      </div>
+      <div class="nav-item" onclick="showPage('analyze',this)" data-page="analyze">
+        🔍 Analyse Entry
+      </div>
+      <div class="nav-item" onclick="showPage('batch',this)" data-page="batch">
+        📋 Batch Analyse
+      </div>
+      <div class="nav-sec">INTELLIGENCE</div>
+      <div class="nav-item" onclick="showPage('feeds',this)" data-page="feeds">
+        📡 Live Feeds
+      </div>
+      <div class="nav-item" onclick="showPage('ml',this)" data-page="ml">
+        🤖 ML Classifier
+      </div>
+      <div class="nav-sec">SYSTEM</div>
+      <div class="nav-item" onclick="showPage('api',this)" data-page="api">
+        ⚙️ API Reference
+      </div>
+    </nav>
+    <div class="sb-footer">
+      <div class="live-badge"><div class="live-dot"></div> LIVE FEEDS</div>
+      <div id="clock"></div>
+      <div class="student-info">
+        Aryan Nigam Dalal<br>
+        SRN: 22103810<br>
+        6COM2019
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <h2>⚡ CYBERWATCH ML BACKEND</h2>
+      <div class="topbar-right">
+        <span class="tag">FEED: <span id="feed-count-top">{{ feed_count }}</span> IPs</span>
+        <span class="tag" id="ml-status-tag">ML: {{ 'READY' if ml_ready else 'TRAINING' }}</span>
+        <button class="btn-sm" onclick="refreshFeed()">⟳ REFRESH FEED</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ── DASHBOARD PAGE ─────────────────────────────────────── -->
+      <div class="page active" id="page-dashboard">
+        <div class="cards-row">
+          <div class="card c-red">
+            <div class="cl">HIGH RISK</div>
+            <div class="cv" id="c-high">0</div>
+          </div>
+          <div class="card c-orange">
+            <div class="cl">MEDIUM RISK</div>
+            <div class="cv" id="c-med">0</div>
+          </div>
+          <div class="card c-green">
+            <div class="cl">LOW RISK</div>
+            <div class="cv" id="c-low">0</div>
+          </div>
+          <div class="card c-blue">
+            <div class="cl">FEED INDICATORS</div>
+            <div class="cv" id="c-feed">{{ feed_count }}</div>
+          </div>
+        </div>
+
+        <div class="section-title">QUICK LOG ANALYSIS</div>
+        <div class="panel" style="margin-bottom:16px">
+          <p style="color:var(--dim);font-size:12px;margin-bottom:12px">
+            Enter a server log entry below. CyberWatch will check it against the live
+            Abuse.ch feed AND run the ML classifier to give a yes/no threat verdict.
+          </p>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>IP ADDRESS</label>
+              <input type="text" id="q-ip" placeholder="e.g. 185.220.101.12">
+            </div>
+            <div class="form-group">
+              <label>PATH</label>
+              <input type="text" id="q-path" placeholder="e.g. /login">
+            </div>
+            <div class="form-group">
+              <label>METHOD</label>
+              <select id="q-method">
+                <option>GET</option><option>POST</option>
+                <option>PUT</option><option>HEAD</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>STATUS</label>
+              <input type="text" id="q-status" placeholder="200">
+            </div>
+            <div class="form-group">
+              <label>PORT</label>
+              <input type="number" id="q-port" placeholder="80" value="80">
+            </div>
+            <div class="form-group">
+              <label>HOUR (0-23)</label>
+              <input type="number" id="q-hour" placeholder="12" value="12" min="0" max="23">
+            </div>
+          </div>
+          <button class="btn-primary" onclick="quickAnalyze()">🔍 ANALYSE THIS ENTRY</button>
+        </div>
+
+        <div id="quick-result" style="display:none" class="panel result-panel">
+          <div id="quick-result-inner"></div>
+        </div>
+
+        <div class="section-title" style="margin-top:20px">RECENT ALERTS</div>
+        <div id="alerts-table-wrap">
+          <p class="dim-text">No alerts yet. Analyse an entry above to get started.</p>
+        </div>
+      </div>
+
+      <!-- ── ANALYSE ENTRY PAGE ─────────────────────────────────── -->
+      <div class="page" id="page-analyze">
+        <div class="section-title">SINGLE ENTRY ANALYSIS</div>
+        <div class="panel">
+          <p style="color:var(--dim);font-size:12px;margin-bottom:14px">
+            Full analysis: live Abuse.ch feed check → behaviour rules →
+            ML classifier → combined verdict with confidence score.
+          </p>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>IP / DOMAIN</label>
+              <input type="text" id="a-ip" placeholder="185.220.101.12">
+            </div>
+            <div class="form-group">
+              <label>METHOD</label>
+              <select id="a-method">
+                <option>GET</option><option>POST</option>
+                <option>PUT</option><option>DELETE</option><option>HEAD</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>PATH</label>
+              <input type="text" id="a-path" placeholder="/login">
+            </div>
+            <div class="form-group">
+              <label>STATUS CODE</label>
+              <input type="text" id="a-status" placeholder="200">
+            </div>
+            <div class="form-group">
+              <label>PORT</label>
+              <input type="number" id="a-port" value="80">
+            </div>
+            <div class="form-group">
+              <label>HOUR (0–23)</label>
+              <input type="number" id="a-hour" value="12" min="0" max="23">
+            </div>
+            <div class="form-group">
+              <label>CONNECTION COUNT</label>
+              <input type="number" id="a-conncount" value="1" min="1">
+            </div>
+            <div class="form-group">
+              <label>BRUTE FORCE HITS</label>
+              <input type="number" id="a-brute" value="0" min="0">
+            </div>
+            <div class="form-group">
+              <label>SENSITIVE PATH HITS</label>
+              <input type="number" id="a-sensitive" value="0" min="0">
+            </div>
+            <div class="form-group">
+              <label>ERROR COUNT</label>
+              <input type="number" id="a-errors" value="0" min="0">
+            </div>
+          </div>
+          <button class="btn-primary" onclick="fullAnalyze()">⚡ FULL ANALYSIS</button>
+          <button class="btn-sm" onclick="fillExample('bad')" style="margin-left:8px">Load Bad IP Example</button>
+          <button class="btn-sm" onclick="fillExample('good')" style="margin-left:6px">Load Clean IP Example</button>
+        </div>
+
+        <div id="full-result" style="display:none" class="panel result-panel" style="margin-top:16px">
+          <div id="full-result-inner"></div>
+        </div>
+      </div>
+
+      <!-- ── BATCH ANALYSE PAGE ─────────────────────────────────── -->
+      <div class="page" id="page-batch">
+        <div class="section-title">BATCH LOG ANALYSIS</div>
+        <div class="panel">
+          <p style="color:var(--dim);font-size:12px;margin-bottom:12px">
+            Paste a JSON array of log entries, or click Generate Sample to use
+            a pre-built mixed log. All entries are analysed in one call.
+          </p>
+          <textarea id="batch-input" rows="12" style="width:100%;background:var(--bg);
+            border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);
+            font-size:11px;padding:10px;resize:vertical"></textarea>
+          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn-primary" onclick="runBatch()">📋 ANALYSE BATCH</button>
+            <button class="btn-sm" onclick="loadSampleBatch()">Generate Sample Log</button>
+            <button class="btn-sm" onclick="document.getElementById('batch-input').value=''">Clear</button>
+          </div>
+        </div>
+        <div id="batch-result" style="margin-top:16px"></div>
+      </div>
+
+      <!-- ── LIVE FEEDS PAGE ────────────────────────────────────── -->
+      <div class="page" id="page-feeds">
+        <div class="section-title">LIVE ABUSE.CH FEED STATUS</div>
+        <div class="cards-row" style="grid-template-columns:repeat(3,1fr)">
+          <div class="card c-blue">
+            <div class="cl">TOTAL INDICATORS</div>
+            <div class="cv" id="feed-total">—</div>
+          </div>
+          <div class="card c-green">
+            <div class="cl">CACHE AGE</div>
+            <div class="cv" style="font-size:24px" id="feed-age">—</div>
+          </div>
+          <div class="card c-orange">
+            <div class="cl">LAST REFRESH</div>
+            <div class="cv" style="font-size:18px" id="feed-last">—</div>
+          </div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px">
+          <button class="btn-primary" onclick="loadFeedStatus()">⟳ CHECK STATUS</button>
+          <button class="btn-sm" onclick="refreshFeed()">Force Refresh Feed</button>
+        </div>
+        <div class="section-title" style="margin-top:20px">LOADED INDICATORS (first 200)</div>
+        <div id="indicator-list" class="panel" style="max-height:400px;overflow-y:auto">
+          <p class="dim-text">Click Check Status to load indicators.</p>
+        </div>
+      </div>
+
+      <!-- ── ML PAGE ───────────────────────────────────────────── -->
+      <div class="page" id="page-ml">
+        <div class="section-title">ML CLASSIFIER — DIRECT PREDICTION</div>
+        <div class="panel">
+          <p style="color:var(--dim);font-size:12px;margin-bottom:14px">
+            Feed raw feature values directly into the RandomForest model.
+            This bypasses the rule engine — you are talking to the ML model only.
+            Use this to understand what the model treats as most suspicious.
+          </p>
+          <div class="form-grid">
+            <div class="form-group"><label>CONNECTION COUNT</label>
+              <input type="number" id="ml-conn" value="1"></div>
+            <div class="form-group"><label>BRUTE FORCE HITS</label>
+              <input type="number" id="ml-brute" value="0"></div>
+            <div class="form-group"><label>SENSITIVE PATH HITS</label>
+              <input type="number" id="ml-sens" value="0"></div>
+            <div class="form-group"><label>ERROR COUNT</label>
+              <input type="number" id="ml-err" value="0"></div>
+            <div class="form-group"><label>UNUSUAL PORT (0/1)</label>
+              <input type="number" id="ml-uport" value="0" min="0" max="1"></div>
+            <div class="form-group"><label>OFF HOURS (0/1)</label>
+              <input type="number" id="ml-ofh" value="0" min="0" max="1"></div>
+            <div class="form-group"><label>UPLOAD ATTEMPT (0/1)</label>
+              <input type="number" id="ml-upl" value="0" min="0" max="1"></div>
+            <div class="form-group"><label>IN FEED (0/1)</label>
+              <input type="number" id="ml-infeed" value="0" min="0" max="1"></div>
+            <div class="form-group"><label>FEED COUNT</label>
+              <input type="number" id="ml-feedcnt" value="0" min="0" max="2"></div>
+            <div class="form-group"><label>THREAT TYPE SCORE</label>
+              <input type="number" id="ml-ttscore" value="0"></div>
+          </div>
+          <button class="btn-primary" onclick="mlPredict()">🤖 PREDICT</button>
+          <button class="btn-sm" onclick="mlFillThreat()" style="margin-left:8px">Fill Threat Example</button>
+          <button class="btn-sm" onclick="mlFillClean()" style="margin-left:6px">Fill Clean Example</button>
+        </div>
+        <div id="ml-result" style="margin-top:16px"></div>
+
+        <div class="section-title" style="margin-top:24px">ABOUT THE MODEL</div>
+        <div class="panel">
+          <p style="color:var(--text);font-size:12px;line-height:1.7">
+            <strong style="color:var(--accent)">Algorithm:</strong> RandomForestClassifier (sklearn)<br>
+            <strong style="color:var(--accent)">Training data:</strong> 200 labelled rows — mixed threat types, benign traffic<br>
+            <strong style="color:var(--accent)">Features:</strong> 10 (connection count, brute force hits, sensitive paths, error count, unusual port, off hours, upload attempts, feed match, feed count, threat type score)<br>
+            <strong style="color:var(--accent)">Output:</strong> THREAT / BENIGN + confidence percentage (0–100%)<br>
+            <strong style="color:var(--accent)">Retrain:</strong> <code style="color:var(--warn)">python3 ml/train_model.py</code><br>
+            <strong style="color:var(--accent)">Integration:</strong> Combined with live Abuse.ch feed and rule engine for final verdict.
+          </p>
+        </div>
+      </div>
+
+      <!-- ── API REFERENCE PAGE ─────────────────────────────────── -->
+      <div class="page" id="page-api">
+        <div class="section-title">API REFERENCE</div>
+        <div class="panel" style="font-family:var(--font-mono);font-size:11px;line-height:2">
+          <div style="color:var(--accent)">GET  /api/health</div>
+          <div style="color:var(--dim);margin-bottom:10px;padding-left:20px">Health check — returns status, feed count, ML state</div>
+
+          <div style="color:var(--accent)">POST /api/analyze</div>
+          <div style="color:var(--dim);margin-bottom:6px;padding-left:20px">Full analysis: Abuse.ch feed + behaviour rules + ML classifier</div>
+          <div style="color:var(--warn);padding-left:20px;margin-bottom:10px">Body: {"ip":"...", "method":"GET", "path":"/login", "status":"200", "port":80, "hour":12, "log":[...]}</div>
+
+          <div style="color:var(--accent)">POST /api/batch-analyze</div>
+          <div style="color:var(--dim);margin-bottom:6px;padding-left:20px">Analyse a full log array in one call, returns ranked results</div>
+          <div style="color:var(--warn);padding-left:20px;margin-bottom:10px">Body: {"log": [{ip, method, path, status, port, hour}, ...]}</div>
+
+          <div style="color:var(--accent)">GET  /api/feed-status</div>
+          <div style="color:var(--dim);margin-bottom:10px;padding-left:20px">Abuse.ch feed cache status — indicator count, last fetch, errors</div>
+
+          <div style="color:var(--accent)">POST /api/refresh-feed</div>
+          <div style="color:var(--dim);margin-bottom:10px;padding-left:20px">Force-refresh the Abuse.ch feed (bypasses cache)</div>
+
+          <div style="color:var(--accent)">GET  /api/indicators</div>
+          <div style="color:var(--dim);margin-bottom:10px;padding-left:20px">List up to 200 loaded threat indicators with full metadata</div>
+
+          <div style="color:var(--accent)">POST /api/predict-only</div>
+          <div style="color:var(--dim);margin-bottom:6px;padding-left:20px">ML classifier direct — no rule engine, raw feature input</div>
+          <div style="color:var(--warn);padding-left:20px;margin-bottom:10px">Body: {connection_count, brute_force_hits, sensitive_path_hits, error_count, unusual_port, off_hours, upload_attempt, in_feed, feed_count, threat_type_score}</div>
+        </div>
+      </div>
+
+    </div><!-- content -->
+  </div><!-- main -->
+</div><!-- layout -->
+
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
